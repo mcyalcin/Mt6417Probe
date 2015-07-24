@@ -46,12 +46,7 @@ object ProbeTestController {
     dc.writeToRoicMemory(0x17, 0x0000)
     val currentS7 = psc.measureCurrent()
     val currentSeq = Seq(currentS1, currentS2, currentS3, currentS4, currentS5, currentS6, currentS7)
-    val results = rvc.checkPower(currentSeq)
-    if (results.contains(false)) {
-      (false, "Not Implemented Yet\n") // TODO: Specify error output format
-    } else {
-      (true, "")
-    }
+    rvc.checkPower(currentSeq)
   }
 
   private def memoryTest(): (Boolean, String) = {
