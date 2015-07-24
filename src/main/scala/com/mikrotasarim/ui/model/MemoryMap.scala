@@ -14,7 +14,12 @@ object MemoryMap {
   val memoryLocations = for (i <- minMemoryIndex to maxMemoryIndex) yield new MemoryLocation(i)
 
   def readRoicMemory(): Unit = {
-    if (!FpgaController.bitfileDeployed) FpgaController.deployBitfile()
+    if (!FpgaController.bitfileDeployed) {
+      FpgaController.deployBitfile()
+      FpgaController.deviceController.takeFpgaOffReset()
+      FpgaController.deviceController.setReset()
+      FpgaController.deviceController.clearReset()
+    }
     for (memoryLocation <- memoryLocations) {
       memoryLocation.read()
     }
