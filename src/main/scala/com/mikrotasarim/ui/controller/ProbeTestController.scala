@@ -24,6 +24,8 @@ object ProbeTestController {
 
   private def powerConsumptionTest(): (Boolean, String) = {
     fc.deployBitfile()
+    dc.putFpgaOnReset()
+    dc.takeFpgaOffReset()
     dc.setReset()
     val currentS1 = psc.measureCurrent()
     dc.clearReset()
@@ -54,6 +56,8 @@ object ProbeTestController {
 
   private def memoryTest(): (Boolean, String) = {
     fc.deployBitfile()
+    dc.putFpgaOnReset()
+    dc.takeFpgaOffReset()
     dc.setReset()
     dc.clearReset()
     val errors = new StringBuilder
@@ -91,6 +95,8 @@ object ProbeTestController {
 
   private def imageTest(): (Boolean, String) = {
     fc.deployBitfile()
+    dc.putFpgaOnReset()
+    dc.takeFpgaOffReset()
     dc.setReset()
     dc.clearReset()
     dc.initializeRoic()

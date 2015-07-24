@@ -42,7 +42,7 @@ class OpalKellyInterface(bitFileName: String) extends DeviceInterface {
     OpalKellyInterface.panel.WriteToBlockPipeIn(address, blockSize, size, data)
 
   override def readFromBlockPipeOut(address: Int, size: Int, data: Array[Byte]): Unit = {
-    OpalKellyInterface.panel.ReadFromBlockPipeOut(address, 64, size, data)
+    OpalKellyInterface.panel.ReadFromBlockPipeOut(address, 512, size, data) // TODO: Block size controls to higher level.
   }
 
   override def updateWireIns(): Unit = OpalKellyInterface.panel.UpdateWireIns()

@@ -342,10 +342,11 @@ class DeviceController(device: DeviceInterface) {
       commandWire -> sFsynOpCode
     ))
     val rawFrame = Array.ofDim[Byte](frameSize)
-    do {
-      device.updateWireOuts()
-    } while (device.getWireOutValue(readyWire) != 0)
-    device.readFromPipeOut(imageOutPipe, frameSize, rawFrame)
+    // TODO: Wait for ready after firmware modification.
+//    do {
+//      device.updateWireOuts()
+//    } while (device.getWireOutValue(readyWire) != 0)
+    device.readFromBlockPipeOut(imageOutPipe, frameSize, rawFrame)
     rawFrame
   }
 
