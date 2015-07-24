@@ -19,7 +19,7 @@ object Mt6417ProbeApp extends JFXApp {
   val model = ProbeTestController
 
   stage = new PrimaryStage {
-    title = "Mikro-Tasarim MTAS1410X8 Probe Test App"
+    title = "Mikro-Tasarim MT6417BA Probe Test App"
     width = 1100
   }
 
