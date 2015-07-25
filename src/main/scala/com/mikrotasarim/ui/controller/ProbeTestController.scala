@@ -56,26 +56,26 @@ object ProbeTestController {
     dc.setReset()
     dc.clearReset()
     val errors = new StringBuilder
-    for (i <- (4 to 95).filter(_!=7)) {
+    for (i <- (4 to 95).filter(_!=10)) {
       dc.writeToRoicMemory(i, 0)
       dc.writeToRoicMemory(i, 1)
       if (dc.readFromRoicMemory(i) % 2 != 1) {
-        errors.append("Address " + i.toHexString + " bit 0 failed to toggle from 0 to 1\n")
+        errors.append("Address " + i + " bit 0 failed to toggle from 0 to 1\n")
       }
       for (j <- 1 until 16) {
         val testData = 2 pow j
         dc.writeToRoicMemory(i, testData)
         val read = dc.readFromRoicMemory(i)
         if ((read / testData / 2) % 2 != 0) {
-          errors.append("Address " + i.toHexString + " bit " + (j - 1) + " failed to toggle from 1 to 0\n")
+          errors.append("Address " + i + " bit " + (j - 1) + " failed to toggle from 1 to 0\n")
         }
         if ((read / testData) % 2 != 1) {
-          errors.append("Address " + i.toHexString + " bit " + j + " failed to toggle from 0 to 1\n")
+          errors.append("Address " + i + " bit " + j + " failed to toggle from 0 to 1\n")
         }
       }
       dc.writeToRoicMemory(i, 0)
       if ((dc.readFromRoicMemory(i) / 2 pow 15) % 2 != 0) {
-        errors.append("Address " + i.toHexString + " bit 15 failed to toggle from 1 to 0\n")
+        errors.append("Address " + i + " bit 15 failed to toggle from 1 to 0\n")
       }
     }
     dc.setReset()

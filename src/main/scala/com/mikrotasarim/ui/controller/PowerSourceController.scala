@@ -47,6 +47,8 @@ object PowerSourceController {
   }
 
   def outputOff(): Unit = {
+    // TODO: This should be decoupled
+    FpgaController.bitfileDeployed = false
     serialPort.writeString("OUTP OFF\n")
   }
 }
