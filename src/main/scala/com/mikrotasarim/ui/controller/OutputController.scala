@@ -61,6 +61,8 @@ object OutputController {
 
     PowerSourceController.outputOff()
 
+    ProbeTestController.resetImage()
+
     dieNumber.value = (dieNumber.value.toInt + 1).toString
   }
 

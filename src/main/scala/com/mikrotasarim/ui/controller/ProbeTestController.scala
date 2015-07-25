@@ -113,5 +113,9 @@ object ProbeTestController {
   for (i <- 0 until 640) for (j <- 0 until 480) diagonalData(j * 640 + i) = 8192 * i / 640 + 8192 * j / 480
   val diagonalFrame = Frame.createFrom14Bit(640, 480, diagonalData)
 
+  def resetImage(): Unit = {
+    currentImage.set(SwingFXUtils.toFXImage(diagonalFrame.getGrayscale, null))
+  }
+
   val currentImage = ObjectProperty[Image](SwingFXUtils.toFXImage(diagonalFrame.getGrayscale, null))
 }
