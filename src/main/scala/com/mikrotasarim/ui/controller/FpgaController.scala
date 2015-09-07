@@ -17,7 +17,7 @@ object FpgaController {
       if (testMode.value) {
         device = new ConsoleMockDeviceInterface()
       } else {
-        device = new OpalKellyInterface("mt6417ba_a0.bit")
+        device = new OpalKellyInterface("mt3817ba.bit")
       }
       deviceController = new DeviceController(device)
       bitfileDeployed = true

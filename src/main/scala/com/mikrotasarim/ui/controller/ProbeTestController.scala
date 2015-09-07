@@ -84,7 +84,42 @@ object ProbeTestController {
     dc.setTriggerMode(TriggerMode.Slave_Software)
     dc.setNucMode(NucMode.Fixed, 0xff)
     dc.sendReferenceDataToRoic()
-    // TODO: Pending specification
+    val refOnes = dc.readReferenceData(384)
+    for (i <- refOnes.indices) {
+      if (refOnes(i) != 0xf) {
+        errors.append("Reference byte " + i + " expected 0xf read " + refOnes(i).toInt.toHexString + ".\n")
+      }
+    }
+    dc.setNucMode(NucMode.Fixed, 0x00)
+    dc.sendReferenceDataToRoic()
+    val refZeroes = dc.readReferenceData(384)
+    for (i <- refZeroes.indices) {
+      if (refZeroes(i) != 0x0) {
+        errors.append("Reference byte " + i + " expected 0x0 read " + refZeroes(i).toInt.toHexString + ".\n")
+      }
+    }
+    dc.enableImagingMode()
+    dc.sendFsync()
+    dc.disableImagingMode()
+    dc.setNucMode(NucMode.Fixed, 0xff)
+    dc.enableImagingMode()
+    dc.sendFsync()
+    val nucOnes = dc.readNuc(384)
+    for (i <- nucOnes.indices) {
+      if (nucOnes(i) != 0xf) {
+        errors.append("Nuc byte " + i + " expected 0xf read " + nucOnes(i).toInt.toHexString + ".\n")
+      }
+    }
+    dc.disableImagingMode()
+    dc.setNucMode(NucMode.Fixed, 0x00)
+    dc.enableImagingMode()
+    dc.sendFsync()
+    val nucZeroes = dc.readNuc(384)
+    for (i <- nucZeroes.indices) {
+      if (nucZeroes(i) != 0x0) {
+        errors.append("Reference byte " + i + " expected 0x0 read " + nucZeroes(i).toInt.toHexString + ".\n")
+      }
+    }
     (errors.toString().isEmpty, errors.toString())
   }
 
@@ -98,7 +133,7 @@ object ProbeTestController {
     dc.setTriggerMode(TriggerMode.Slave_Software)
     dc.setNucMode(NucMode.Enabled)
     dc.enableImagingMode()
-    val frameProvider = new A1FrameProvider(dc, 640, 480)
+    val frameProvider = new A1FrameProvider(dc, 384, 288)
     val frame = frameProvider.getFrame.getGrayscale
     val convertedFrame = SwingFXUtils.toFXImage(frame, null)
     currentImage.set(convertedFrame)
@@ -109,9 +144,9 @@ object ProbeTestController {
     for (testCase <- testCases) testCase.runTest()
   }
 
-  val diagonalData = Array.ofDim[Int](640 * 480)
-  for (i <- 0 until 640) for (j <- 0 until 480) diagonalData(j * 640 + i) = 8192 * i / 640 + 8192 * j / 480
-  val diagonalFrame = Frame.createFrom14Bit(640, 480, diagonalData)
+  val diagonalData = Array.ofDim[Int](384 * 288)
+  for (i <- 0 until 384) for (j <- 0 until 288) diagonalData(j * 384 + i) = 8192 * i / 384 + 8192 * j / 288
+  val diagonalFrame = Frame.createFrom14Bit(384, 288, diagonalData)
 
   def resetImage(): Unit = {
     currentImage.set(SwingFXUtils.toFXImage(diagonalFrame.getGrayscale, null))

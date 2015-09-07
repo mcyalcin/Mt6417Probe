@@ -337,10 +337,14 @@ class DeviceController(device: DeviceInterface) {
     ))
   }
 
-  def getFrameData(frameSize: Int): Array[Byte] = {
+  def sendFsync(): Unit = {
     setWiresAndTrigger(Map(
       commandWire -> sFsynOpCode
     ))
+  }
+
+  def getFrameData(frameSize: Int): Array[Byte] = {
+    sendFsync()
     val rawFrame = Array.ofDim[Byte](frameSize)
     // TODO: Wait for ready after firmware modification.
 //    do {
@@ -363,9 +367,7 @@ class DeviceController(device: DeviceInterface) {
   }
 
   def getFullFrame: Array[Byte] = {
-    setWiresAndTrigger(Map(
-      commandWire -> sFsynOpCode
-    ))
+    sendFsync()
     val frameSize = 392 * 289 * 2
     val rawFrame = Array.ofDim[Byte](frameSize)
     do {
@@ -393,6 +395,26 @@ class DeviceController(device: DeviceInterface) {
       commandWire -> sResMOpCode,
       dataWire -> mode.id
     ))
+  }
+
+  def readReferenceData(lineSize: Int): Array[Byte] = {
+    setWiresAndTrigger(Map(
+      commandWire -> rdRerOpCode
+    ))
+    waitForDeviceReady()
+    val data = Array.ofDim[Byte](lineSize * 2)
+    device.readFromPipeOut(nucOutPipe, lineSize * 2, data)
+    data
+  }
+
+  def readNuc(lineSize: Int): Array[Byte] = {
+    setWiresAndTrigger(Map(
+      commandWire -> rdNucOpCode
+    ))
+    waitForDeviceReady()
+    val data = Array.ofDim[Byte](lineSize)
+    device.readFromPipeOut(nucOutPipe, lineSize, data)
+    data
   }
 }
 
@@ -459,6 +481,8 @@ object ApiConstants {
   val disImOpCode = 0xe0
   val enbImOpCode = 0xe1
   val sFsynOpCode = 0xe2
+  val rdRerOpCode = 0xbc
+  val rdNucOpCode = 0xbd
 
   object TriggerMode extends Enumeration {
     type TriggerMode = Value
