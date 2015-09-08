@@ -4,10 +4,11 @@ import javafx.embed.swing.SwingFXUtils
 import javafx.scene.image.Image
 
 import com.mikrotasarim.api.command.ApiConstants.{NucMode, TriggerMode}
-import com.mikrotasarim.ui.model.{Frame, A1FrameProvider, ProbeTestCase}
+import com.mikrotasarim.ui.model.{A1FrameProvider, Frame, ProbeTestCase}
 import spire.implicits._
 
 import scalafx.beans.property.{StringProperty, ObjectProperty}
+import scalafx.collections.ObservableBuffer
 
 object ProbeTestController {
 
@@ -18,6 +19,19 @@ object ProbeTestController {
   def psc = PowerSourceController
 
   def rvc = ReferenceValueController
+
+  def fp = new A1FrameProvider(dc, xSize(selectedSystem.value), ySize(selectedSystem.value))
+
+  val systemOptions = ObservableBuffer(List(
+    "MT3817BA",
+    "MT6417BA"
+  ))
+
+  val selectedSystem = StringProperty("MT3817BA")
+
+  val xSize = Map("MT3817BA" -> 384, "MT6417BA" -> 640)
+  val ySize = Map("MT3817BA" -> 288, "MT6417BA" -> 480)
+  val depth = Map("MT3817BA" -> 8192, "MT6417BA" -> 8192)
 
   val testCases: Seq[ProbeTestCase] = Seq(
     new ProbeTestCase("Power Consumption Test", powerConsumptionTest),
@@ -87,7 +101,7 @@ object ProbeTestController {
     dc.setTriggerMode(TriggerMode.Slave_Software)
     dc.setNucMode(NucMode.Fixed, 0xff)
     dc.sendReferenceDataToRoic()
-    val refOnes = dc.readReferenceData(384)
+    val refOnes = dc.readReferenceData(xSize(selectedSystem.value))
     for (i <- refOnes.indices) {
       if (refOnes(i) != 0xf) {
         errors.append("Reference byte " + i + " expected 0xf read " + refOnes(i).toInt.toHexString + ".\n")
@@ -95,7 +109,7 @@ object ProbeTestController {
     }
     dc.setNucMode(NucMode.Fixed, 0x00)
     dc.sendReferenceDataToRoic()
-    val refZeroes = dc.readReferenceData(384)
+    val refZeroes = dc.readReferenceData(xSize(selectedSystem.value))
     for (i <- refZeroes.indices) {
       if (refZeroes(i) != 0x0) {
         errors.append("Reference byte " + i + " expected 0x0 read " + refZeroes(i).toInt.toHexString + ".\n")
@@ -110,7 +124,7 @@ object ProbeTestController {
     dc.sendFsync()
     Thread.sleep(1000)
     dc.disableImagingMode()
-    val nucOnes = dc.readNuc(384)
+    val nucOnes = dc.readNuc(xSize(selectedSystem.value))
     for (i <- nucOnes.indices) {
       if (nucOnes(i) != 0xf) {
         errors.append("Nuc byte " + i + " expected 0xf read " + nucOnes(i).toInt.toHexString + ".\n")
@@ -121,7 +135,7 @@ object ProbeTestController {
     dc.sendFsync()
     Thread.sleep(1000)
     dc.disableImagingMode()
-    val nucZeroes = dc.readNuc(384)
+    val nucZeroes = dc.readNuc(xSize(selectedSystem.value))
     for (i <- nucZeroes.indices) {
       if (nucZeroes(i) != 0x0) {
         errors.append("Reference byte " + i + " expected 0x0 read " + nucZeroes(i).toInt.toHexString + ".\n")
@@ -139,15 +153,16 @@ object ProbeTestController {
     dc.initializeRoic()
     dc.setTriggerMode(TriggerMode.Slave_Software)
     dc.setNucMode(NucMode.Enabled)
-    dc.writeToRoicMemory(0x3B,521)
+    dc.writeToRoicMemory(0x3B, 521)
     dc.updateRoicMemory()
-    dc.writeToRoicMemory(0x11,0x045F)
+    dc.writeToRoicMemory(0x11, 0x045F)
     dc.updateRoicMemory()
     dc.enableImagingMode()
-    val frameProvider = new A1FrameProvider(dc, 384, 288)
-    var frame = frameProvider.getFrame.getGrayscale
+    val frameProvider = fp
+    var frame = fp.getFrame.getGrayscale
     Thread.sleep(100)
     frame = frameProvider.getFrame.getGrayscale
+    // TODO: Why is frame taken twice? Solve the problem and remove.
     val convertedFrame = SwingFXUtils.toFXImage(frame, null)
     currentImage.set(convertedFrame)
     (false, "")
@@ -157,9 +172,9 @@ object ProbeTestController {
     for (testCase <- testCases) testCase.runTest()
   }
 
-  val diagonalData = Array.ofDim[Int](384 * 288)
-  for (i <- 0 until 384) for (j <- 0 until 288) diagonalData(j * 384 + i) = 8192 * i / 384 + 8192 * j / 288
-  val diagonalFrame = Frame.createFrom14Bit(384, 288, diagonalData)
+  val diagonalData = Array.ofDim[Int](xSize(selectedSystem.value) * ySize(selectedSystem.value))
+  for (i <- 0 until xSize(selectedSystem.value)) for (j <- 0 until ySize(selectedSystem.value)) diagonalData(j * xSize(selectedSystem.value) + i) = depth(selectedSystem.value) * i / xSize(selectedSystem.value) + depth(selectedSystem.value) * j / ySize(selectedSystem.value)
+  val diagonalFrame = Frame.createFrom14Bit(xSize(selectedSystem.value), ySize(selectedSystem.value), diagonalData)
 
   def resetImage(): Unit = {
     currentImage.set(SwingFXUtils.toFXImage(diagonalFrame.getGrayscale, null))
@@ -172,8 +187,7 @@ object ProbeTestController {
     dc.setTriggerMode(TriggerMode.Slave_Software)
     dc.setNucMode(NucMode.Enabled)
     dc.enableImagingMode()
-    val frameProvider = new A1FrameProvider(dc, 640, 480)
-    val frame = frameProvider.getFrame.getGrayscale
+    val frame = fp.getFrame.getGrayscale
     val convertedFrame = SwingFXUtils.toFXImage(frame, null)
     dc.disableImagingMode()
     currentImage.set(convertedFrame)
@@ -186,10 +200,10 @@ object ProbeTestController {
     dc.setReset()
     dc.clearReset()
     dc.initializeRoic()
-    dc.setNucMode(NucMode.Fixed, 255, 255)
+    dc.setNucMode(NucMode.Fixed, 255, 255) // TODO: replace magic numbers
     dc.sendReferenceDataToRoic()
     dc.setNucMode(NucMode.Enabled)
-    dc.setSamplingDelay(4)
-    dc.setAdcDelay(3)
+    dc.setSamplingDelay(4) // TODO: replace magic numbers
+    dc.setAdcDelay(3) // TODO: replace magic numbers
   }
 }

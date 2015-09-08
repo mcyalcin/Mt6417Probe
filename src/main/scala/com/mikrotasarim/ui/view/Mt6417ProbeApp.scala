@@ -88,6 +88,9 @@ object Mt6417ProbeApp extends JFXApp {
   private def createControlColumn: Node = new VBox {
     spacing = 10
     content = List(
+      new ChoiceBox(ProbeTestController.systemOptions) {
+        value <==> ProbeTestController.selectedSystem
+      },
       new Button("Run All Tests") {
         onAction = handle {
           ProbeTestController.runAll()
