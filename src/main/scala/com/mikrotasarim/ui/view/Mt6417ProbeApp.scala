@@ -148,6 +148,16 @@ object Mt6417ProbeApp extends JFXApp {
           MemoryMapStage.show()
         }
       },
+      new Button("Initialize") {
+        onAction = handle {
+          ProbeTestController.initializeRoic()
+        }
+      },
+      new Button("Refresh Image") {
+        onAction = handle {
+          ProbeTestController.refreshImage()
+        }
+      },
       new Separator,
       new CheckBox("Self Test Mode") {
         selected <==> FpgaController.testMode

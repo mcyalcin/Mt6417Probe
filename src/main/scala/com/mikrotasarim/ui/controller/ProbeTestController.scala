@@ -7,13 +7,16 @@ import com.mikrotasarim.api.command.ApiConstants.{NucMode, TriggerMode}
 import com.mikrotasarim.ui.model.{Frame, A1FrameProvider, ProbeTestCase}
 import spire.implicits._
 
-import scalafx.beans.property.ObjectProperty
+import scalafx.beans.property.{StringProperty, ObjectProperty}
 
 object ProbeTestController {
 
   def fc = FpgaController
+
   def dc = fc.deviceController
+
   def psc = PowerSourceController
+
   def rvc = ReferenceValueController
 
   val testCases: Seq[ProbeTestCase] = Seq(
@@ -56,7 +59,7 @@ object ProbeTestController {
     dc.setReset()
     dc.clearReset()
     val errors = new StringBuilder
-    for (i <- (4 to 95).filter(_!=10)) {
+    for (i <- (5 to 95).filter(_ != 10)) {
       dc.writeToRoicMemory(i, 0)
       dc.writeToRoicMemory(i, 1)
       if (dc.readFromRoicMemory(i) % 2 != 1) {
@@ -101,19 +104,23 @@ object ProbeTestController {
     dc.enableImagingMode()
     dc.sendFsync()
     dc.disableImagingMode()
+    Thread.sleep(1000)
     dc.setNucMode(NucMode.Fixed, 0xff)
     dc.enableImagingMode()
     dc.sendFsync()
+    Thread.sleep(1000)
+    dc.disableImagingMode()
     val nucOnes = dc.readNuc(384)
     for (i <- nucOnes.indices) {
       if (nucOnes(i) != 0xf) {
         errors.append("Nuc byte " + i + " expected 0xf read " + nucOnes(i).toInt.toHexString + ".\n")
       }
     }
-    dc.disableImagingMode()
     dc.setNucMode(NucMode.Fixed, 0x00)
     dc.enableImagingMode()
     dc.sendFsync()
+    Thread.sleep(1000)
+    dc.disableImagingMode()
     val nucZeroes = dc.readNuc(384)
     for (i <- nucZeroes.indices) {
       if (nucZeroes(i) != 0x0) {
@@ -132,9 +139,15 @@ object ProbeTestController {
     dc.initializeRoic()
     dc.setTriggerMode(TriggerMode.Slave_Software)
     dc.setNucMode(NucMode.Enabled)
+    dc.writeToRoicMemory(0x3B,521)
+    dc.updateRoicMemory()
+    dc.writeToRoicMemory(0x11,0x045F)
+    dc.updateRoicMemory()
     dc.enableImagingMode()
     val frameProvider = new A1FrameProvider(dc, 384, 288)
-    val frame = frameProvider.getFrame.getGrayscale
+    var frame = frameProvider.getFrame.getGrayscale
+    Thread.sleep(100)
+    frame = frameProvider.getFrame.getGrayscale
     val convertedFrame = SwingFXUtils.toFXImage(frame, null)
     currentImage.set(convertedFrame)
     (false, "")
@@ -153,4 +166,30 @@ object ProbeTestController {
   }
 
   val currentImage = ObjectProperty[Image](SwingFXUtils.toFXImage(diagonalFrame.getGrayscale, null))
+
+  def refreshImage(): Unit = {
+    fc.deployBitfile()
+    dc.setTriggerMode(TriggerMode.Slave_Software)
+    dc.setNucMode(NucMode.Enabled)
+    dc.enableImagingMode()
+    val frameProvider = new A1FrameProvider(dc, 640, 480)
+    val frame = frameProvider.getFrame.getGrayscale
+    val convertedFrame = SwingFXUtils.toFXImage(frame, null)
+    dc.disableImagingMode()
+    currentImage.set(convertedFrame)
+  }
+
+  def initializeRoic(): Unit = {
+    fc.deployBitfile()
+    dc.putFpgaOnReset()
+    dc.takeFpgaOffReset()
+    dc.setReset()
+    dc.clearReset()
+    dc.initializeRoic()
+    dc.setNucMode(NucMode.Fixed, 255, 255)
+    dc.sendReferenceDataToRoic()
+    dc.setNucMode(NucMode.Enabled)
+    dc.setSamplingDelay(4)
+    dc.setAdcDelay(3)
+  }
 }
