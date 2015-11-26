@@ -346,10 +346,6 @@ class DeviceController(device: DeviceInterface) {
   def getFrameData(frameSize: Int): Array[Byte] = {
     sendFsync()
     val rawFrame = Array.ofDim[Byte](frameSize)
-    // TODO: Wait for ready after firmware modification.
-//    do {
-//      device.updateWireOuts()
-//    } while (device.getWireOutValue(readyWire) != 0)
     device.readFromBlockPipeOut(imageOutPipe, frameSize, rawFrame)
     rawFrame
   }
@@ -372,7 +368,6 @@ class DeviceController(device: DeviceInterface) {
     val rawFrame = Array.ofDim[Byte](frameSize)
     do {
       device.updateWireOuts()
-      // TODO: Add actors/multithreading here to avoid busy waiting
     } while (device.getWireOutValue(readyWire) != 0)
     device.readFromPipeOut(imageOutPipe, frameSize, rawFrame)
     rawFrame
@@ -397,17 +392,28 @@ class DeviceController(device: DeviceInterface) {
     ))
   }
 
-  def readReferenceData(lineSize: Int): Array[Byte] = {
+  def resetNucOutFifo(): Unit = {
+    waitForDeviceReady()
+    device.setWireInValue(resetWire, 0, 2 pow nucFifoOutReset)
+    device.updateWireIns()
+    device.setWireInValue(resetWire, 2 pow nucFifoOutReset, 2 pow nucFifoOutReset)
+    device.updateWireIns()
+  }
+
+  def readReferenceData(lineSize: Int, address: Int): Array[Byte] = {
+    resetNucOutFifo()
     setWiresAndTrigger(Map(
-      commandWire -> rdRerOpCode
+      commandWire -> rdRerOpCode,
+      addressWire -> address
     ))
     waitForDeviceReady()
-    val data = Array.ofDim[Byte](lineSize * 2)
-    device.readFromPipeOut(nucOutPipe, lineSize * 2, data)
+    val data = Array.ofDim[Byte](lineSize)
+    device.readFromPipeOut(nucOutPipe, lineSize, data)
     data
   }
 
   def readNuc(lineSize: Int): Array[Byte] = {
+    resetNucOutFifo()
     setWiresAndTrigger(Map(
       commandWire -> rdNucOpCode
     ))

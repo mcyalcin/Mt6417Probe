@@ -24,14 +24,15 @@ object ProbeTestController {
 
   val systemOptions = ObservableBuffer(List(
     "MT3817BA",
-    "MT6417BA"
+    "MT6417BA",
+    "MT10217BA"
   ))
 
   val selectedSystem = StringProperty("MT3817BA")
 
-  val xSize = Map("MT3817BA" -> 384, "MT6417BA" -> 640)
-  val ySize = Map("MT3817BA" -> 288, "MT6417BA" -> 480)
-  val depth = Map("MT3817BA" -> 8192, "MT6417BA" -> 8192)
+  val xSize = Map("MT3817BA" -> 384, "MT6417BA" -> 640, "MT10217BA" -> 1024)
+  val ySize = Map("MT3817BA" -> 288, "MT6417BA" -> 480, "MT10217BA" -> 768)
+  val halfDepth = Map("MT3817BA" -> 8192, "MT6417BA" -> 8192, "MT10217BA" -> 8192)
 
   val testCases: Seq[ProbeTestCase] = Seq(
     new ProbeTestCase("Power Consumption Test", powerConsumptionTest),
@@ -101,24 +102,36 @@ object ProbeTestController {
     dc.setTriggerMode(TriggerMode.Slave_Software)
     dc.setNucMode(NucMode.Fixed, 0xff)
     dc.sendReferenceDataToRoic()
-    val refOnes = dc.readReferenceData(xSize(selectedSystem.value))
-    for (i <- refOnes.indices) {
-      if (refOnes(i) != 0xf) {
-        errors.append("Reference byte " + i + " expected 0xf read " + refOnes(i).toInt.toHexString + ".\n")
+    val refOnes_lsb = dc.readReferenceData(xSize(selectedSystem.value), 0)
+    for (i <- refOnes_lsb.indices) {
+      if (refOnes_lsb(i) != 0xff.toByte) {
+        errors.append("Reference byte " + i + " expected 0xff read " + refOnes_lsb(i).toInt.toHexString + ".\n")
+      }
+    }
+    val refOnes_msb = dc.readReferenceData(xSize(selectedSystem.value), 1)
+    for (i <- refOnes_msb.indices) {
+      if (refOnes_msb(i) != 0xff.toByte) {
+        errors.append("Reference byte " + i + " expected 0xff read " + refOnes_msb(i).toInt.toHexString + ".\n")
       }
     }
     dc.setNucMode(NucMode.Fixed, 0x00)
     dc.sendReferenceDataToRoic()
-    val refZeroes = dc.readReferenceData(xSize(selectedSystem.value))
-    for (i <- refZeroes.indices) {
-      if (refZeroes(i) != 0x0) {
-        errors.append("Reference byte " + i + " expected 0x0 read " + refZeroes(i).toInt.toHexString + ".\n")
+    val refZeroes_lsb = dc.readReferenceData(xSize(selectedSystem.value), 0)
+    for (i <- refZeroes_lsb.indices) {
+      if (refZeroes_lsb(i) != 0x00.toByte) {
+        errors.append("Reference byte " + i + " expected 0x00 read " + refZeroes_lsb(i).toInt.toHexString + ".\n")
+      }
+    }
+    val refZeroes_msb = dc.readReferenceData(xSize(selectedSystem.value), 1)
+    for (i <- refZeroes_msb.indices) {
+      if (refZeroes_msb(i) != 0x00.toByte) {
+        errors.append("Reference byte " + i + " expected 0x00 read " + refZeroes_msb(i).toInt.toHexString + ".\n")
       }
     }
     dc.enableImagingMode()
     dc.sendFsync()
-    dc.disableImagingMode()
     Thread.sleep(1000)
+    dc.disableImagingMode()
     dc.setNucMode(NucMode.Fixed, 0xff)
     dc.enableImagingMode()
     dc.sendFsync()
@@ -126,8 +139,8 @@ object ProbeTestController {
     dc.disableImagingMode()
     val nucOnes = dc.readNuc(xSize(selectedSystem.value))
     for (i <- nucOnes.indices) {
-      if (nucOnes(i) != 0xf) {
-        errors.append("Nuc byte " + i + " expected 0xf read " + nucOnes(i).toInt.toHexString + ".\n")
+      if (nucOnes(i) != 0xff.toByte) {
+        errors.append("Nuc byte " + i + " expected 0xff read " + nucOnes(i).toInt.toHexString + ".\n")
       }
     }
     dc.setNucMode(NucMode.Fixed, 0x00)
@@ -137,43 +150,50 @@ object ProbeTestController {
     dc.disableImagingMode()
     val nucZeroes = dc.readNuc(xSize(selectedSystem.value))
     for (i <- nucZeroes.indices) {
-      if (nucZeroes(i) != 0x0) {
-        errors.append("Reference byte " + i + " expected 0x0 read " + nucZeroes(i).toInt.toHexString + ".\n")
+      if (nucZeroes(i) != 0x00.toByte) {
+        errors.append("Reference byte " + i + " expected 0x00 read " + nucZeroes(i).toInt.toHexString + ".\n")
       }
     }
     (errors.toString().isEmpty, errors.toString())
   }
 
   private def imageTest(): (Boolean, String) = {
-    fc.deployBitfile()
-    dc.putFpgaOnReset()
-    dc.takeFpgaOffReset()
-    dc.setReset()
-    dc.clearReset()
-    dc.initializeRoic()
+    initializeRoic()
     dc.setTriggerMode(TriggerMode.Slave_Software)
     dc.setNucMode(NucMode.Enabled)
     dc.writeToRoicMemory(0x3B, 521)
     dc.updateRoicMemory()
     dc.writeToRoicMemory(0x11, 0x045F)
     dc.updateRoicMemory()
+    dc.writeToRoicMemory(0x07, 0x2BC7)
+    dc.updateRoicMemory()
+    dc.writeToRoicMemory(0x55, 0x02E0)
+    dc.updateRoicMemory()
     dc.enableImagingMode()
-    val frameProvider = fp
-    var frame = fp.getFrame.getGrayscale
-    Thread.sleep(100)
-    frame = frameProvider.getFrame.getGrayscale
-    // TODO: Why is frame taken twice? Solve the problem and remove.
+    def getUnsaturatedFrameGrayscale = {
+      fp.getFrame
+      Thread.sleep(100)
+      fp.getFrame.getGrayscale
+    }
+    val frame = getUnsaturatedFrameGrayscale
+    dc.disableImagingMode()
     val convertedFrame = SwingFXUtils.toFXImage(frame, null)
     currentImage.set(convertedFrame)
     (false, "")
   }
 
   def runAll(): Unit = {
+    PowerSourceController.outputOn()
+    Thread.sleep(5000)
     for (testCase <- testCases) testCase.runTest()
   }
 
   val diagonalData = Array.ofDim[Int](xSize(selectedSystem.value) * ySize(selectedSystem.value))
-  for (i <- 0 until xSize(selectedSystem.value)) for (j <- 0 until ySize(selectedSystem.value)) diagonalData(j * xSize(selectedSystem.value) + i) = depth(selectedSystem.value) * i / xSize(selectedSystem.value) + depth(selectedSystem.value) * j / ySize(selectedSystem.value)
+  for (i <- 0 until xSize(selectedSystem.value))
+    for (j <- 0 until ySize(selectedSystem.value))
+      diagonalData(j * xSize(selectedSystem.value) + i) =
+        halfDepth(selectedSystem.value) * i / xSize(selectedSystem.value) +
+          halfDepth(selectedSystem.value) * j / ySize(selectedSystem.value)
   val diagonalFrame = Frame.createFrom14Bit(xSize(selectedSystem.value), ySize(selectedSystem.value), diagonalData)
 
   def resetImage(): Unit = {
@@ -184,6 +204,7 @@ object ProbeTestController {
 
   def refreshImage(): Unit = {
     fc.deployBitfile()
+    dc.disableImagingMode()
     dc.setTriggerMode(TriggerMode.Slave_Software)
     dc.setNucMode(NucMode.Enabled)
     dc.enableImagingMode()
